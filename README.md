@@ -6,9 +6,11 @@ Here is the updated script: [Wildcards-plus-shoot-skinupscale-variations.js](htt
 
 You will need to install the following models in Draw Things to get it to work (for alternate links, they are also on Hugging Face, Civitai and Civ Archive): 
 
-Skin Refiner Checkpoint: https://huggingface.co/John6666/jib-mix-realistic-xl-v180-skin-supreme-sdxl/tree/main
-SPO Aesthetics LORA: https://civitai.com/models/510261/spo-sdxl4k-p10eplorawebui
-Realistic Skin Texture Style: https://civitai.com/models/580857/realistic-skin-texture-style-xl-detailed-skin-sd15-flux1d-pony-illu
+* Skin Refiner Checkpoint: https://huggingface.co/John6666/jib-mix-realistic-xl-v180-skin-supreme-sdxl/tree/main
+
+* SPO Aesthetics LORA: https://civitai.com/models/510261/spo-sdxl4k-p10eplorawebui
+
+* Realistic Skin Texture Style: https://civitai.com/models/580857/realistic-skin-texture-style-xl-detailed-skin-sd15-flux1d-pony-illu
 
 
 ## Features
