@@ -10,7 +10,7 @@ You will need to install the following models in Draw Things to get it to work (
 
 * SPO Aesthetics LORA: https://civitai.com/models/510261/spo-sdxl4k-p10eplorawebui
 
-* Realistic Skin Texture Style: https://civitai.com/models/580857/realistic-skin-texture-style-xl-detailed-skin-sd15-flux1d-pony-illu
+* Realistic Skin Texture Style: https://civarchive.com/models/580857?modelVersionId=707763
 
 
 ## Features
