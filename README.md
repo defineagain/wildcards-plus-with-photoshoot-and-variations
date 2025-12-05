@@ -4,6 +4,13 @@ A robust, feature-rich 'wildcards' script for Draw Things that enables flexible,
 
 Here is the updated script: [Wildcards-plus-shoot-skinupscale-variations.js](https://github.com/defineagain/wildcards-plus-with-photoshoot-and-variations/blob/main/Wildcards-plus-shoot-skinupscale-variations.js)
 
+You will need to install the following models in Draw Things to get it to work (for alternate links, they are also on Hugging Face, Civitai and Civ Archive): 
+
+Skin Refiner Checkpoint: https://huggingface.co/John6666/jib-mix-realistic-xl-v180-skin-supreme-sdxl/tree/main
+SPO Aesthetics LORA: https://civitai.com/models/510261/spo-sdxl4k-p10eplorawebui
+Realistic Skin Texture Style: https://civitai.com/models/580857/realistic-skin-texture-style-xl-detailed-skin-sd15-flux1d-pony-illu
+
+
 ## Features
 
   * **All Features of Wildcards Plus v1.5 Ultimate:** Full grammar engine, weighted alternatives, nested wildcards, smart text joining, comments, named wildcards (with latching and recursion), and more.
