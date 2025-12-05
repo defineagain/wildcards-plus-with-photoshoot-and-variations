@@ -2,7 +2,7 @@
 
 A robust, feature-rich 'wildcards' script for Draw Things that enables flexible, dynamic prompt generation and includes an automatic, integrated upscale and skin refinement pass.
 
-Here is the updated script: Wildcards-plus-shoot-skinupscale-variations.js
+Here is the updated script: [Wildcards-plus-shoot-skinupscale-variations.js](https://github.com/defineagain/wildcards-plus-with-photoshoot-and-variations/blob/main/Wildcards-plus-shoot-skinupscale-variations.js)
 
 ## Features
 
