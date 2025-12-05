@@ -2,6 +2,8 @@
 
 A robust, feature-rich 'wildcards' script for Draw Things that enables flexible, dynamic prompt generation and includes an automatic, integrated upscale and skin refinement pass.
 
+Here is the updated script: Wildcards-plus-shoot-skinupscale-variations.js
+
 ## Features
 
   * **All Features of Wildcards Plus v1.5 Ultimate:** Full grammar engine, weighted alternatives, nested wildcards, smart text joining, comments, named wildcards (with latching and recursion), and more.
