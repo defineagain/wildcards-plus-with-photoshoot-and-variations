@@ -1,3 +1,159 @@
+# Wildcards Plus (Photoshoot + Skin Refine + Intensity Variations)
+
+A robust, feature-rich 'wildcards' script for Draw Things that enables flexible, dynamic prompt generation and includes an automatic, integrated upscale and skin refinement pass.
+
+## Features
+
+  * **All Features of Wildcards Plus v1.5 Ultimate:** Full grammar engine, weighted alternatives, nested wildcards, smart text joining, comments, named wildcards (with latching and recursion), and more.
+  * **Integrated Upscale & Refine Workflow:** Automatically runs a second pass on every generated image to upscale it and refine skin details using a specialized configuration (checkpoint, LoRAs, and settings).
+  * **Dynamic Skin Detail Control:** A slider in the UI lets you control the `strength` of the refinement pass, balancing between smoothness (AI hallucination) and realistic detail (original texture).
+  * **Random Variations:** Adds subtle random variations to LoRA weights and specific prompt modifiers (e.g., `(red hair: 1.3)`) to increase diversity across batches.
+  * **Photoshoot Mode:** Define a sequence of shots in a single prompt line (e.g., `[ Shot A | Shot B ]`) and generate a batch for each shot automatically.
+
+## Installation
+
+1.  Download the `Wildcards_Plus_With_Skin_Upscale.js` file.
+2.  Place it in your Draw Things `Scripts` folder (or import it via the Scripts tab in the app).
+3.  Ensure you have the necessary models downloaded for the upscale pass (see "Requirements" below).
+
+## Usage
+
+1.  **Select Script:** Run the script from the Draw Things Scripts menu.
+2.  **Configure Settings:**
+      * **Prompt:** Enter your prompt. You can use standard text or the Wildcards Plus syntax (see below).
+      * **Images to generate per Shot:** How many variations you want for each prompt/shot.
+      * **Skin Detail (Low \<-\> High):** Adjust the slider.
+          * **Left (0.0):** Smoother skin, more AI modification (Strength \~0.5).
+          * **Right (1.0):** More realistic skin texture, closer to original generation (Strength \~0.3).
+      * **Variation Settings:**
+          * **LoRA Variation Range:** How much LoRA weights should randomly fluctuate (e.g., +/- 0.1).
+          * **Modifier Variation Range:** How much prompt weights like `(text:1.2)` should fluctuate.
+          * **Variation Increments:** The granularity of the random changes.
+3.  **Run:** The script will generate an initial image and then immediately follow it with a refinement pass, saving the final result.
+
+## Syntax Guide
+
+This script supports the full syntax of the original Wildcards Plus engine.
+
+### Basic Wildcards
+
+Use curly braces `{}` to create choices. Use `|` to separate options.
+
+  * `{cat|dog}`: Randomly chooses "cat" or "dog".
+  * `{2 cat|dog}`: "cat" is twice as likely as "dog".
+
+### Named Wildcards (Variables)
+
+Define variables at the start of your prompt using `@name = { ... }`.
+
+  * `@color = {red|blue|green}`
+  * Usage: `A @color ball.`
+
+### Photoshoot Sequence
+
+Define a list of distinct shots using square brackets `[ ... ]`.
+
+  * `[ A close up of a warrior | A wide shot of a castle ]`
+  * The script will generate the specified batch count for *each* shot in the sequence.
+
+### Prompt Modifiers
+
+Standard weighting syntax `(text:weight)` is supported and can be randomly varied by the script settings.
+
+  * `A photo of a (smiling:1.2) woman`
+
+## Requirements
+
+The upscale/refine pass uses specific models. Ensure these are downloaded or available in your Draw Things model list, or the script will attempt to download them:
+
+  * **Checkpoint:** `skin_supreme_jibmixrealisticxl_v180_f16.ckpt` (or your preferred realistic skin model)
+  * **Upscaler:** `4x_ultrasharp_f16.ckpt`
+  * **LoRAs:**
+      * `add_detail_sdxl_lora_f16.ckpt`
+      * `spo_sdxl___improved_aesthetics_lora_f16.ckpt`
+      * `skin_texture_style_v4_lora_f16.ckpt`
+
+## Credits
+
+This script is a modification of **Wildcards Plus** by **ariane-emory**.
+Original Repository: [https://github.com/ariane-emory/wildcards-plus](https://github.com/ariane-emory/wildcards-plus?tab=readme-ov-file)
+
+### Original Wildcards Plus Readme
+
+*(Below is the documentation for the core grammar engine features provided by the original author)*
+
+-----
+
+A feature-rich 'wildcards' script (and command-line tool) for Draw Things, providing numerous features to allow flexible prompt generation.
+
+### Features:
+
+  * Weighted alternatives in wildcards
+  * Nested wildcards
+  * 'Smart' text joining logic
+  * Comments
+  * Named wildcards - the basics
+  * Named wildcards - 'latching' (and unlatching) a named wildcard's value
+  * Named wildcards - getting multiple items at once
+  * Fun named wildcard tricks - recursion
+  * Escaped characters
+  * Setting 'boolean' flags and using guards
+  * Putting it all together and some final thoughts
+  * A quick note on 'types' and names
+  * Some useful built in named wildwards
+  * Several very usesul features that I haven't documented yet, unfortunately... sorry, hopefully soon\!
+
+### Weighted alternatives in wildcards
+
+A positve integer that occurs before any of the content in one of a wildcard's alternatives will be interpreted as a weight influencing how likely that alternative is to be picked. If an alternative does not contain an integer before any of its content, it recieves the default weight of 1.
+
+**Example prompt:**
+`A { dog | 2 cat } in a { field | 3 kitchen }.`
+
+This example will generate prompts containing 'cat' instead of 'dog' two times in three, and most of the time (three times in four) the animal will be in a kitchen.
+
+### Nested wildcards:
+
+The content of an alternative in a wildcard may include another wildcard, which is expanded recursively along with the enclosing wildcard.
+
+**Example prompt:** `{ { brown | 3 spotted } dog | 2 { siamese | 2 tabby } cat } in a { field | 3 kitchen }`
+
+### 'Smart' text joining logic:
+
+wildcards-plus uses a few simple strategies to join the fragments of generated text together in a way that produces nicer output (e.g., handling punctuation, 'a/an' articles).
+
+**Example prompt:** `fire {<man | <fighter | <truck | brigade | _elemental | { , water, earth and air | and ice } }. \n`
+
+### Named wildcards - the basics:
+
+Named wildcards may be defined may be defined by employing the `=` device.
+
+**Example prompt:**
+
+```javascript
+// define a named wildcard named '@weapon':
+@weapon = {2 spear|2 sword|axe|halberd|scimitar|kukri|rapier|sabre|cutlass|mace|dagger}
+
+// use that named wildcard in our prompt here to get a random weapon:
+A {man|woman} {holding|swinging|2 wielding|3 brandishing} a @weapon.
+```
+
+### Named wildcards - 'latching':
+
+A named wildcard may be 'latched' using by using an expression preceding the wildcard's name with a `@#` sequence.
+
+**Example:**
+
+```javascript
+@bird = {duck|goose}
+@#bird // latch it
+@bird, @bird // same bird twice
+@!bird // unlatch it
+@bird // random bird
+```
+
+*(See the [original repository](https://github.com/ariane-emory/wildcards-plus?tab=readme-ov-file) for full documentation on advanced features like recursion, flags, and guards.)*
+
 A feature-rich 'wildcards' script (and command-line tool) for Draw Things, providing numerous features to allow flexible prompt generation.
 
 **Features:**
