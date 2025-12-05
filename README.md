@@ -9,6 +9,7 @@ You will need to install the following models in Draw Things to get it to work (
 * Skin Refiner Checkpoint: https://huggingface.co/John6666/jib-mix-realistic-xl-v180-skin-supreme-sdxl/tree/main
 
 * SPO Aesthetics LORA: https://civitai.com/models/510261/spo-sdxl4k-p10eplorawebui
+https://civarchive.com/sha256/b6c2c16f3ef579885f10e94468d8f7196d09464002d116c115432207f4b1f8ab
 
 * Realistic Skin Texture Style: https://civarchive.com/models/580857?modelVersionId=707763
 
