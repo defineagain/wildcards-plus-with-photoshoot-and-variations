@@ -13,6 +13,16 @@ https://civarchive.com/sha256/b6c2c16f3ef579885f10e94468d8f7196d09464002d116c115
 
 * Realistic Skin Texture Style: https://civarchive.com/models/580857?modelVersionId=707763
 
+##OVERVIEW
+The concept and intent of the script is to be able to generate a full photoshoot via an LLM. There is a prompt included in the the repository, and the square brackets let you set up a prompt sequence:
+
+[shot1|shot2|etc..]
+
+You can define a spine of common elements using wildcard definitions with one entry  e.g. {shoot spine}
+
+And have wildcards defined for each shot to give options. {shotvariantelement1|shotvariantelement2 etc.}
+
+This lets the LLM define a full shoot from an initial idea or concept and give the prompt required to explore each shot and possible variations on it, before settling on a final form for the shoot, based on a set of selected realised prompts, then leading into a finalised shoot series with character stability, post production detailing etc. 
 
 ## Features
 
