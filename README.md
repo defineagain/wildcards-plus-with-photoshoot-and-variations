@@ -13,7 +13,7 @@ https://civarchive.com/sha256/b6c2c16f3ef579885f10e94468d8f7196d09464002d116c115
 
 * Realistic Skin Texture Style: https://civarchive.com/models/580857?modelVersionId=707763
 
-##OVERVIEW
+**OVERVIEW**
 The concept and intent of the script is to be able to generate a full photoshoot via an LLM. There is a prompt included in the the repository, and the square brackets let you set up a prompt sequence:
 
 [shot1|shot2|etc..]
