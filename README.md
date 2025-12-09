@@ -22,7 +22,11 @@ You can define a spine of common elements using wildcard definitions with one en
 
 And have wildcards defined for each shot to give options. {shotvariantelement1|shotvariantelement2 etc.}
 
-This lets the LLM define a full shoot from an initial idea or concept and give the prompt required to explore each shot and possible variations on it, before settling on a final form for the shoot, based on a set of selected realised prompts, then leading into a finalised shoot series with character stability, post production detailing etc. 
+*This lets the LLM define a full shoot from an initial idea or concept,  yeilding the prompt required to then feed into this script, to explore each shot and possible variations on it. 
+
+*Then you can select the shots you like best, to settle on a final form for the shoot, based on a set of selected realised prompts.
+
+*This then leads into a finalised shoot series with character stability, post production detailing etc. 
 
 ## Features
 
