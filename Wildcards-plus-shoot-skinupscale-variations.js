@@ -1041,53 +1041,7 @@ Prompt.finalize();
 
 // --- UPSCALE / REFINE CONFIGURATION ---
 // NOTE: Width, Height, and Seed are now dynamic and will be copied from the base generation
-const upscaleConfig = {
-  "id": 0,
-  "negativeOriginalImageHeight": 512,
-  "sharpness": 0,
-  "clipSkip": 2,
-  "preserveOriginalAfterInpaint": false,
-  "maskBlur": 2.5,
-  "cfgZeroStar": false,
-  // "strength": 0.29999999999999999, // Removed: Now dynamic
-  "sampler": 12,
-  "refinerModel": "",
-  // "height": 896, // Removed: dynamic
-  "upscaler": "4x_ultrasharp_f16.ckpt",
-  // "originalImageHeight": 896, // Removed: dynamic
-  "zeroNegativePrompt": true,
-  "model": "skin_supreme_jibmixrealisticxl_v180_f16.ckpt",
-  "negativeAestheticScore": 2.5,
-  // "seed": 870310394, // Removed: dynamic
-  "batchSize": 1,
-  "aestheticScore": 6,
-  "steps": 16,
-  "tiledDiffusion": false,
-  "negativeOriginalImageWidth": 576,
-  "cropLeft": 0,
-  // "width": 1152, // Removed: dynamic
-  "controls": [],
-  "maskBlurOutset": 0,
-  "hiresFix": false,
-  // "originalImageWidth": 1152, // Removed: dynamic
-  "guidanceScale": 5,
-  "upscalerScaleFactor": 0,
-  "cropTop": 0,
-  // "targetImageHeight": 896, // Removed: dynamic
-  "cfgZeroInitSteps": 0,
-  "loras": [
-    {"id": 1, "mode":"all","file":"add_detail_sdxl_lora_f16.ckpt","weight":0.38},
-    {"id": 2, "mode":"all","file":"spo_sdxl___improved_aesthetics_lora_f16.ckpt","weight":0.59999999999999998},
-    {"id": 3, "mode":"all","file":"skin_texture_style_v4_lora_f16.ckpt","weight":0.20000000000000001}
-  ],
-  // "targetImageWidth": 1152, // Removed: dynamic
-  "shift": 1,
-  "batchCount": 1,
-  "seedMode": 2,
-  "faceRestoration": "",
-  "causalInferencePad": 0,
-  "tiledDecoding": false
-};
+const upscaleConfig = {"aestheticScore":6,"negativeOriginalImageWidth":576,"causalInferencePad":0,"targetImageHeight":1024,"model":"skin_supreme_jibmixrealisticxl_v180_f16.ckpt","loras":[{"mode":"all","file":"add_detail_sdxl_lora_f16.ckpt","weight":0.32000000000000001},{"mode":"all","file":"spo_sdxl___improved_aesthetics_lora_f16.ckpt","weight":0.41999999999999998},{"mode":"all","file":"skin_texture_style_v4_lora_f16.ckpt","weight":0.51000000000000001}],"steps":16,"tiledDiffusion":false,"batchCount":1,"originalImageWidth":1280,"seed":3077355401,"controls":[],"shift":1,"height":1024,"guidanceScale":5,"refinerModel":"","upscalerScaleFactor":0,"tiledDecoding":false,"negativeOriginalImageHeight":512,"zeroNegativePrompt":true,"strength":0.57299999999999995,"clipSkip":2,"cfgZeroStar":false,"faceRestoration":"","seedMode":2,"originalImageHeight":1024,"targetImageWidth":1280,"sampler":12,"hiresFix":false,"negativeAestheticScore":2.5,"batchSize":1,"preserveOriginalAfterInpaint":false,"cropLeft":0,"cropTop":0,"maskBlur":2.5,"sharpness":0,"upscaler":"4x_ultrasharp_f16.ckpt","cfgZeroInitSteps":0,"width":1280,"maskBlurOutset":0};
 
 const fallbackPrompt = "[ A cinematic shot of a {2::cat|dog} in space | A portrait of a {wizard|warrior} ]";
 // Clone the current configuration so we can restore it later
@@ -1117,8 +1071,11 @@ Example:
 [ Shot A wearing @outfit | Shot B wearing @outfit ]
 
 SLIDER 1: Batch Count (Images per shot).
-SLIDER 2: Skin Detail (Refine Strength). Higher detail = lower strength (less AI hallucination).
-AFTER EACH IMAGE: An upscale/refine pass will run automatically to improve skin details.
+SWITCH 2: Toggle Skin Refine Pass.
+SLIDER 3: Skin Refine Strength (0.2 - 0.7). Higher = more AI hallucination/change.
+SLIDER 4: Refine Pass Steps (15 - 40).
+SLIDERS 5-7: Control individual LoRA weights for the Skin Refine Pass.
+AFTER EACH IMAGE: An upscale/refine pass will run automatically if enabled.
 `;
 
 // UI Request
@@ -1127,10 +1084,16 @@ const userSelection = requestFromUser("Photoshoot Generator (Full)", "Start", fu
         this.section("Settings", uiHint, [
             this.textField(promptString, "Enter prompt...", true, 240),
             this.slider(1, this.slider.fractional(0), 1, 100, "Images to generate per Shot"),
-            // New slider for skin detail control
-            // 0.0 (Left) = Low Detail / Smoother (Higher Strength ~0.5)
-            // 1.0 (Right) = High Detail / Realistic (Lower Strength ~0.3)
-            this.slider(1.0, this.slider.fractional(1), 0, 1, "Skin Detail (Low <-> High)")
+            // Toggle for Skin Refine Pass
+            this.switch(true, "Enable Skin Refine Pass"),
+            // Slider for Refine Strength (0.2 to 0.7)
+            this.slider(0.3, this.slider.fractional(1), 0.2, 0.7, "Refine Strength (0.2 - 0.7)"),
+            // Slider for Refine Steps (15 - 40)
+            this.slider(20, this.slider.fractional(0), 15, 40, "Refine Pass Steps"),
+            // Sliders for individual LoRA weights
+            this.slider(0.32, this.slider.fractional(2), 0.2, 0.7, "Add Detail LoRA Weight"),
+            this.slider(0.42, this.slider.fractional(2), 0.2, 0.7, "SPO LoRA Weight"),
+            this.slider(0.51, this.slider.fractional(2), 0.2, 0.7, "Skin Texture LoRA Weight")
         ]),
         this.section("Variation Settings", "Randomly adjust weights for variety", [
             // Variation Range for LoRAs (e.g. +/- 0.2)
@@ -1145,8 +1108,17 @@ const userSelection = requestFromUser("Photoshoot Generator (Full)", "Start", fu
 });
 
 const batchCount = parseInt(userSelection[0][1]);
-// Get skin detail value (0 to 1)
-const skinDetailValue = parseFloat(userSelection[0][2]);
+// Get toggle state
+const enableRefinePass = userSelection[0][2];
+// Get refine strength value directly
+const refineStrengthValue = parseFloat(userSelection[0][3]);
+// Get refine steps value
+const refineStepsValue = parseInt(userSelection[0][4]);
+// Get individual LoRA weights
+const addDetailWeight = parseFloat(userSelection[0][5]);
+const spoWeight = parseFloat(userSelection[0][6]);
+const skinTextureWeight = parseFloat(userSelection[0][7]);
+
 promptString = userSelection[0][0];
 
 // New Variation Settings
@@ -1154,17 +1126,11 @@ const loraVariationRange = parseFloat(userSelection[1][0]);
 const modifierVariationRange = parseFloat(userSelection[1][1]);
 const variationIncrements = parseInt(userSelection[1][2]);
 
-// Calculate refine strength based on slider
-// Slider 0 (Low Detail) -> Strength 0.5 (More AI hallucination/smoothing)
-// Slider 1 (High Detail) -> Strength 0.3 (Less change, more original grain/detail)
-// Formula: Strength = 0.5 - (Slider * 0.2)
-// 0.0 -> 0.5 - 0 = 0.5
-// 0.5 -> 0.5 - 0.1 = 0.4
-// 1.0 -> 0.5 - 0.2 = 0.3
-const calculatedRefineStrength = 0.5 - (skinDetailValue * 0.2);
-
-console.log(`Skin Detail Slider: ${skinDetailValue}`);
-console.log(`Calculated Refine Strength: ${calculatedRefineStrength.toFixed(2)}`);
+console.log(`Refine Pass Enabled: ${enableRefinePass}`);
+if (enableRefinePass) {
+    console.log(`Refine Strength: ${refineStrengthValue}, Steps: ${refineStepsValue}`);
+    console.log(`Add Detail LoRA: ${addDetailWeight}, SPO LoRA: ${spoWeight}, Skin Texture LoRA: ${skinTextureWeight}`);
+}
 console.log(`Variations - LoRA: +/-${loraVariationRange}, Modifiers: +/-${modifierVariationRange}, Steps: ${variationIncrements}`);
 
 console.log("Initializing Full Photoshoot Engine...");
@@ -1320,7 +1286,9 @@ const refineModels = [
     "spo_sdxl___improved_aesthetics_lora_f16.ckpt",
     "skin_texture_style_v4_lora_f16.ckpt"
 ];
-pipeline.downloadBuiltins(refineModels);
+if (enableRefinePass) {
+    pipeline.downloadBuiltins(refineModels);
+}
 
 for (let i = 0; i < taskQueue.length; i++) {
     let task = taskQueue[i];
@@ -1355,51 +1323,58 @@ for (let i = 0; i < taskQueue.length; i++) {
         prompt: variedPrompt // Use the varied prompt
     });
 
-    // 2. Refine / Upscale Pass
-    console.log(`  > Step 2: Skin Refine / Upscale`);
-    
-    // Prepare refine configuration
-    // FIX: Merge upscale settings into a clone of the full original configuration.
-    // This ensures all required internal keys (like 'id', 'hiresFixWidth', etc.) are present.
-    let refineConfig = JSON.parse(JSON.stringify(originalGlobalConfig));
-    Object.assign(refineConfig, upscaleConfig);
+    // 2. Refine / Upscale Pass (CONDITIONAL)
+    if (enableRefinePass) {
+        console.log(`  > Step 2: Skin Refine / Upscale`);
+        
+        // Prepare refine configuration
+        // FIX: Merge upscale settings into a clone of the full original configuration.
+        // This ensures all required internal keys (like 'id', 'hiresFixWidth', etc.) are present.
+        let refineConfig = JSON.parse(JSON.stringify(originalGlobalConfig));
+        Object.assign(refineConfig, upscaleConfig);
 
-    // Apply dynamic strength calculated from slider
-    refineConfig.strength = calculatedRefineStrength;
+        // Apply dynamic strength from user selection
+        refineConfig.strength = refineStrengthValue;
+        // Apply dynamic steps from user selection
+        refineConfig.steps = refineStepsValue;
 
-    // Apply dimensions and seed from the base run to the refine pass
-    refineConfig.width = runConfig.width;
-    refineConfig.height = runConfig.height;
-    refineConfig.originalImageWidth = runConfig.originalImageWidth || runConfig.width;
-    refineConfig.originalImageHeight = runConfig.originalImageHeight || runConfig.height;
-    refineConfig.targetImageWidth = runConfig.targetImageWidth || runConfig.width;
-    refineConfig.targetImageHeight = runConfig.targetImageHeight || runConfig.height;
-    refineConfig.seed = runConfig.seed;
+        // Apply dimensions and seed from the base run to the refine pass
+        refineConfig.width = runConfig.width;
+        refineConfig.height = runConfig.height;
+        refineConfig.originalImageWidth = runConfig.originalImageWidth || runConfig.width;
+        refineConfig.originalImageHeight = runConfig.originalImageHeight || runConfig.height;
+        refineConfig.targetImageWidth = runConfig.targetImageWidth || runConfig.width;
+        refineConfig.targetImageHeight = runConfig.targetImageHeight || runConfig.height;
+        refineConfig.seed = runConfig.seed;
 
-    // Apply variations to LoRA weights in the upscale config
-    if (refineConfig.loras && refineConfig.loras.length > 0) {
-        refineConfig.loras = refineConfig.loras.map(lora => {
-            // Only modify if weight exists
-            if (lora.weight !== undefined) {
-                let newWeight = varyWeight(lora.weight, loraVariationRange, variationIncrements);
-                // Clamp weight to sensible range (e.g., 0.0 to 2.0) if desired, but here we just ensure non-negative
+        // Apply variations to LoRA weights in the upscale config
+        if (refineConfig.loras && refineConfig.loras.length > 0) {
+            refineConfig.loras = refineConfig.loras.map(lora => {
+                // Determine weight based on LoRA filename
+                let baseWeight = lora.weight;
+                if (lora.file === "add_detail_sdxl_lora_f16.ckpt") baseWeight = addDetailWeight;
+                else if (lora.file === "spo_sdxl___improved_aesthetics_lora_f16.ckpt") baseWeight = spoWeight;
+                else if (lora.file === "skin_texture_style_v4_lora_f16.ckpt") baseWeight = skinTextureWeight;
+
+                // Apply variation
+                let newWeight = varyWeight(baseWeight, loraVariationRange, variationIncrements);
+                // Clamp weight
                 if (newWeight < 0) newWeight = 0;
-                // Return new object to avoid mutation issues if referenced elsewhere
+                
                 return { ...lora, weight: newWeight };
-            }
-            return lora;
+            });
+        }
+        
+        // We use the same (varied) prompt for refinement to maintain context
+        
+        pipeline.run({
+            configuration: refineConfig,
+            prompt: variedPrompt 
         });
     }
-    
-    // We use the same (varied) prompt for refinement to maintain context
-    
-    pipeline.run({
-        configuration: refineConfig,
-        prompt: variedPrompt 
-    });
 
     // Note: pipeline.run is synchronous in the scripting environment, 
-    // so the loop will wait for both generations to finish before moving to the next task.
+    // so the loop will wait for generations to finish before moving to the next task.
 }
 
 console.log("All requests sent successfully.");
