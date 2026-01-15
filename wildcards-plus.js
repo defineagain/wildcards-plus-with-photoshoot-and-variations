@@ -9248,9 +9248,11 @@ function expand_wildcards(thing, context, { correct_articles = true } = {}) {
               // Heuristic: Check for Pose
               if (data.points && Array.isArray(data.points)) {
                  if (context.noisy) lm.log(`Applied Pose from #${thing.flag}`);
-                 // Assuming canvas is global or available via window/scope.
-                 // In storyflowpipeline.js it is 'canvas'. Here we hope it's available.
-                 // If not, maybe we should check availability.
+                 
+                 // Persist pose in configuration
+                 context.configuration._persistent_pose = data;
+
+                 // Apply immediately (though it might be cleared later, we ensure it's in state)
                  if (typeof canvas !== 'undefined') {
                     canvas.loadPoseFromJson(data);
                  } else {
@@ -11824,6 +11826,11 @@ try {
       canvas.clear();
     } else {
       lm.log(`Not clearing canvas`);
+    }
+
+    // Restore persistent pose if it exists (since clear() wipes it)
+    if (context.configuration._persistent_pose && typeof canvas !== 'undefined') {
+        canvas.loadPoseFromJson(context.configuration._persistent_pose);
     }
 
     lm.log(`Generating image #${ix+1} out of ${batch_count} at ${format_simple_time()}...`);
