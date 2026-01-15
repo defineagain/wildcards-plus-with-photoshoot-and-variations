@@ -1038,7 +1038,7 @@ class Label extends Rule {
     return [ this.rule ];
   }
   // -----------------------------------------------------------------------------------------------
-  __impl_finalize(indent, visited) {
+  __impl_finalize(visited) {
     this.rule = this.__vivify(this.rule);
     lm.indent(() => this.rule.__finalize(visited));
   }
@@ -1079,7 +1079,7 @@ class NeverMatch extends Rule  {
     return [ ];
   }
   // -----------------------------------------------------------------------------------------------
-  __impl_finalize(indent, visited) {
+  __impl_finalize(visited) {
     // do nothing.
   }
   // -----------------------------------------------------------------------------------------------
@@ -10534,6 +10534,10 @@ class ASTNamedWildcardDefinition extends ASTNode {
   toString() {
     return `@${this.name} = ${this.wildcard}`;
   }
+  // -----------------------------------------------------------------------------------------------
+  __impl_finalize(visited) {
+    this.wildcard.__finalize(visited);
+  }
 }
 // -------------------------------------------------------------------------------------------------
 // ASTConfigDefinition:
@@ -10551,6 +10555,10 @@ class ASTConfigDefinition extends ASTNode {
   // -----------------------------------------------------------------------------------------------
   toString() {
     return `#${this.name} := { ... }`;
+  }
+  // -----------------------------------------------------------------------------------------------
+  __impl_finalize(visited) {
+    this.wildcard.__finalize(visited);
   }
 }
 // -------------------------------------------------------------------------------------------------
@@ -11482,11 +11490,12 @@ const NamedWildcardDefinition =
                              optional(SpecialFunctionTail))))
       .abbreviate_str_repr('NamedWildcardDefinition');
 // -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 const ConfigDefinition =
       xform(arr => new ASTConfigDefinition(arr[0], arr[1]),
             cutting_seq(head(cadr(hash, ident),
                              discarded_comments,
-                             lws(equals)),
+                             lws(choice(equals, l(':=', 'colon_equals')))), 
                         discarded_comments,
                         head(lws(AnonWildcardInDefinition),
                              optional(SpecialFunctionTail))))
@@ -11700,49 +11709,124 @@ lm.log(`Multiple pick priority: ${user_selected_pick_multiple_priority}`);
 // parse the prompt_string here:
 // -------------------------------------------------------------------------------------------------
 
+// Helper: Parse the [ Shot 1 | Shot 2 ] structure (Simple String Splitter)
+function parsePhotoshootSequence(input) {
+    input = input.trim();
+    if (input.startsWith('[') && input.endsWith(']')) {
+        input = input.substring(1, input.length - 1);
+    }
+    let shots = [];
+    let currentShot = "";
+    let braceDepth = 0;
+
+    for (let i = 0; i < input.length; i++) {
+        let char = input[i];
+        if (char === '{') braceDepth++;
+        else if (char === '}') braceDepth--;
+
+        if (char === '|' && braceDepth === 0) {
+            if (currentShot.trim()) shots.push(currentShot.trim());
+            currentShot = "";
+        } else {
+            currentShot += char;
+        }
+    }
+    if (currentShot.trim()) shots.push(currentShot.trim());
+    return shots;
+}
+
+
 try {
-  const parse_result     = Prompt.match(prompt_string);
-
-  if (! parse_result.is_finished)
-    throw new Error(`parsing prompt did not finish parsing its input!`);
-
-  const AST              = parse_result.value;
-
   // -----------------------------------------------------------------------------------------------
+  // DETECT MODE (Smart Splitting for Photoshoot Mode)
+  // -----------------------------------------------------------------------------------------------
+  
+  let preamble = "";
+  let sequenceBlock = "";
+  let isPhotoshootMode = false;
+  let taskQueue = [];
+
+  // Find the start of the sequence [ ... ]
+  const seqStart = prompt_string.indexOf('[');
+  const seqEnd = prompt_string.lastIndexOf(']');
+
+  if (seqStart !== -1 && seqEnd !== -1 && seqEnd > seqStart) {
+      isPhotoshootMode = true;
+      preamble = prompt_string.substring(0, seqStart).trim();
+      sequenceBlock = prompt_string.substring(seqStart, seqEnd + 1).trim();
+  }
 
   const base_context = load_prelude();
   base_context.configuration          = pipeline.configuration;
   base_context.pick_one_priority      = user_selected_pick_one_priority;
   base_context.pick_multiple_priority = user_selected_pick_multiple_priority;
 
-  // -----------------------------------------------------------------------------------------------
-  // process_named_wildcard_definitions:
-  let process_named_wildcard_definitions_elapsed;
+  if (isPhotoshootMode) {
+      lm.log("Mode: Photoshoot Sequence (With Preamble)");
+      
+      // 1. Load Preamble Definitions into Base Context
+      if (preamble.length > 0) {
+          lm.log("Processing Preamble Definitions...");
+          try {
+              let result = Prompt.match(preamble);
+              if(result) expand_wildcards(result.value, base_context); 
+          } catch(e) {
+              lm.log("Warning: Error parsing preamble definitions. " + e.message);
+          }
+      }
 
-  lm.log(`process_named_wildcard_definitions...`);
-  lm.indent(() => {
-    process_named_wildcard_definitions_elapsed = measure_time(() =>
-      process_named_wildcard_definitions(AST, { context: base_context }));
-  });
-  lm.log(`process_named_wildcard_definitions took ${process_named_wildcard_definitions_elapsed.toFixed(2)} ms`);
+      // 2. Parse Sequence
+      let shots = parsePhotoshootSequence(sequenceBlock);
+      lm.log(`Found ${shots.length} shots in sequence.`);
 
-  // audit flags:
-  let audit_elapsed, audit_warnings;
+      // 3. Build Tasks
+      for (let i = 0; i < shots.length; i++) {
+          let rawShot = shots[i];
+          for (let j = 0; j < batch_count; j++) {
+              taskQueue.push({ rawPrompt: rawShot, isRaw: true });
+          }
+      }
+  } else {
+      // STANDARD BATCH MODE
+      lm.log("Mode: Standard Batch");
+      const parse_result = Prompt.match(prompt_string);
 
-  lm.log(`auditing...`);
-  lm.indent(() => {
-    audit_elapsed = measure_time(() =>
-      audit_warnings = audit_semantics(AST, { base_context: base_context }));
-  });
-  lm.log(`audit took ${audit_elapsed.toFixed(2)} ms`);
+      if (! parse_result.is_finished)
+          throw new Error(`parsing prompt did not finish parsing its input!`);
+    
+      const AST = parse_result.value;
 
-  const audit_warning_counts = count_occurrences(audit_warnings);
+      // Only in standard mode do we process definitions/audit the whole block upfront
+      // because in photoshoot mode, definitions are in the preamble (handled above) 
+      // and the "body" is dynamic per shot.
+      
+      // process_named_wildcard_definitions:
+      let process_named_wildcard_definitions_elapsed;
+      lm.log(`process_named_wildcard_definitions...`);
+      lm.indent(() => {
+        process_named_wildcard_definitions_elapsed = measure_time(() =>
+          process_named_wildcard_definitions(AST, { context: base_context }));
+      });
+      lm.log(`process_named_wildcard_definitions took ${process_named_wildcard_definitions_elapsed.toFixed(2)} ms`);
+
+      // audit flags:
+      let audit_elapsed, audit_warnings;
+      lm.log(`auditing...`);
+      lm.indent(() => {
+        audit_elapsed = measure_time(() =>
+          audit_warnings = audit_semantics(AST, { base_context: base_context }));
+      });
+      lm.log(`audit took ${audit_elapsed.toFixed(2)} ms`);
+
+      const audit_warning_counts = count_occurrences(audit_warnings);
   
-  for (let [warning, count] of audit_warning_counts)
-    lm.log((count > 1
-            ? `${warning} (${count} times)`
-            : warning),
-           false);
+      for (let [warning, count] of audit_warning_counts)
+        lm.log((count > 1 ? `${warning} (${count} times)` : warning), false);
+      
+      for (let j = 0; j < batch_count; j++) {
+          taskQueue.push({ AST: AST, isRaw: false });
+      }
+  }
 
   // -----------------------------------------------------------------------------------------------
   LOG_LINE();
@@ -11763,20 +11847,31 @@ try {
   // -----------------------------------------------------------------------------------------------
   // main loop:
   // -----------------------------------------------------------------------------------------------
-  for (let ix = 0; ix < batch_count; ix++) {
+  for (let ix = 0; ix < taskQueue.length; ix++) {
+    const task = taskQueue[ix];
     const start_date = new Date();
 
     LOG_LINE();
-    lm.log(`Beginning expansion #${ix+1} out of ${batch_count} at ` +
+    lm.log(`Beginning expansion #${ix+1} out of ${taskQueue.length} at ` +
            `${format_simple_time(start_date)}:`);
     LOG_LINE();
 
     // expand the wildcards using a cloned context and generate a new configuration:
-    
-    // lm.log(`BEFORE CLONING CONTEXT...`);
     const context = base_context.clone();
-    // lm.log(`AFTER CLONING CONTEXT`);
-    const prompt  = expand_wildcards(AST, context, { correct_articles: true });
+    let prompt;
+
+    if (task.isRaw) {
+        // Parse the raw shot for this task
+        const shot_parse_result = Prompt.match(task.rawPrompt);
+        if (!shot_parse_result || !shot_parse_result.is_finished) {
+             lm.log("Skipping invalid shot parsing.");
+             continue; 
+        }
+        prompt = expand_wildcards(shot_parse_result.value, context, { correct_articles: true });
+    } else {
+        // Use pre-parsed AST
+        prompt = expand_wildcards(task.AST, context, { correct_articles: true });
+    }
 
     if (! is_empty_object(context.configuration)) {
       LOG_LINE();
