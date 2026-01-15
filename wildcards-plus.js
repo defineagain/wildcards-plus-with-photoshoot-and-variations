@@ -4034,6 +4034,7 @@ class Context {
     flags                        = [], 
     scalar_variables             = new Map(),
     named_wildcards              = new Map(),
+    named_configs                = new Map(),
     noisy                        = false,
     files                        = [], 
     configuration                = {}, 
@@ -4049,6 +4050,7 @@ class Context {
     this.flags                        = flags;
     this.scalar_variables             = scalar_variables;
     this.named_wildcards              = named_wildcards;
+    this.named_configs                = named_configs;
     this.noisy                        = noisy;
     this.files                        = files;
     this.configuration                = configuration;
@@ -4128,6 +4130,7 @@ class Context {
       flags:                        this.flags,
       scalar_variables:             this.scalar_variables,
       named_wildcards:              this.named_wildcards,
+      named_configs:                this.named_configs,
       noisy:                        this.noisy,
       files:                        this.files,
       top_file:                     this.top_file,
@@ -4210,6 +4213,7 @@ class Context {
     this.flags = [];
     this.scalar_variables = new Map();
     this.named_wildcards = new Map();
+    this.named_configs = new Map();
     
     for (const [name, nwc] of this.named_wildcards)
       if (nwc instanceof ASTLatchedNamedWildcard) {
@@ -9231,6 +9235,39 @@ function expand_wildcards(thing, context, { correct_articles = true } = {}) {
       // flags:
       // -------------------------------------------------------------------------------------------
       else if (thing instanceof ASTSetFlag) {
+        if (context.named_configs.has(thing.flag)) {
+            // It is a Config/Pose instruction
+            try {
+              const configWildcard = context.named_configs.get(thing.flag);
+              // Walk to expand the wildcard into text (JSON)
+              // We pass correct_articles: false to avoid messing with JSON content
+              const jsonText = walk(configWildcard, { correct_articles: false });
+              
+              const data = JSON.parse(jsonText);
+
+              // Heuristic: Check for Pose
+              if (data.points && Array.isArray(data.points)) {
+                 if (context.noisy) lm.log(`Applied Pose from #${thing.flag}`);
+                 // Assuming canvas is global or available via window/scope.
+                 // In storyflowpipeline.js it is 'canvas'. Here we hope it's available.
+                 // If not, maybe we should check availability.
+                 if (typeof canvas !== 'undefined') {
+                    canvas.loadPoseFromJson(data);
+                 } else {
+                    lm.log(`Warning: 'canvas' not found, cannot apply pose #${thing.flag}`, true);
+                 }
+              } else {
+                 if (context.noisy) lm.log(`Applied Config from #${thing.flag}`);
+                 // Update configuration
+                 Object.assign(context.configuration, data);
+              }
+            } catch (e) {
+              lm.log(`Error executing config/pose #${thing.flag}: ${e.message}`, true);
+            }
+
+            throw new ThrownReturn(''); // produce nothing
+        }
+
         if (log_flags_enabled >= 2)
           lm.log(`setting flag '${thing.flag}'.`);
 
@@ -9433,6 +9470,14 @@ function expand_wildcards(thing, context, { correct_articles = true } = {}) {
         // context.named_wildcards.set(thing.name, thing.wildcard);
 
         // throw new ThrownReturn(''); // produce nothing
+      }
+      // -------------------------------------------------------------------------------------------
+      else if (thing instanceof ASTConfigDefinition) {
+        if (context.named_configs.has(thing.name)) {
+           // warning?
+        }
+        context.named_configs.set(thing.name, thing.wildcard);
+        throw new ThrownReturn(''); // produce nothing
       }
       // -------------------------------------------------------------------------------------------
       // internal objects:
@@ -10489,6 +10534,24 @@ class ASTNamedWildcardDefinition extends ASTNode {
   }
 }
 // -------------------------------------------------------------------------------------------------
+// ASTConfigDefinition:
+// -------------------------------------------------------------------------------------------------
+class ASTConfigDefinition extends ASTNode {
+  constructor(name, wildcard) {
+    super();
+    this.name = name;
+    this.wildcard = wildcard;
+  }
+  // -----------------------------------------------------------------------------------------------
+  __direct_children() {
+    return [ this.wildcard ];
+  }
+  // -----------------------------------------------------------------------------------------------
+  toString() {
+    return `#${this.name} := { ... }`;
+  }
+}
+// -------------------------------------------------------------------------------------------------
 // ASTNamedWildcardReference:
 // -------------------------------------------------------------------------------------------------
 class ASTNamedWildcardReference extends ASTLeafNode {
@@ -11417,6 +11480,16 @@ const NamedWildcardDefinition =
                              optional(SpecialFunctionTail))))
       .abbreviate_str_repr('NamedWildcardDefinition');
 // -------------------------------------------------------------------------------------------------
+const ConfigDefinition =
+      xform(arr => new ASTConfigDefinition(arr[0], arr[1]),
+            cutting_seq(head(cadr(hash, ident),
+                             discarded_comments,
+                             lws(equals)),
+                        discarded_comments,
+                        head(lws(AnonWildcardInDefinition),
+                             optional(SpecialFunctionTail))))
+      .abbreviate_str_repr('ConfigDefinition');
+// -------------------------------------------------------------------------------------------------
 const NamedWildcardUsage      =
       xform(seq(at, optional(bang), optional(hash), ident),
             arr => {
@@ -11542,6 +11615,7 @@ const ContentAtTopLevel                = make_Content_rule({
   after_plain_text_rules:  [
     make_malformed_token_rule(r_raw`}\S*`),
     NamedWildcardDefinition,
+    ConfigDefinition,
     SpecialFunctionInclude,
   ],
 });
