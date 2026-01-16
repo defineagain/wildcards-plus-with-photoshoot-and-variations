@@ -35,14 +35,17 @@ if (uiPrompt && uiPrompt.trim().length > 0 && (uiPrompt.includes('{') || uiPromp
 const user_selection = requestFromUser("Sequential Wildcards", "Run", function() {
     return [
         this.section("Settings", "Enter your prompt in the main Draw Things prompt area first!", [
-            this.slider(1, this.slider.fractional(0), 1, 20, "Batch Count (per shot)")
+            this.slider(1, this.slider.fractional(0), 1, 20, "Batch Count (per shot)"),
+            this.switch(true, "Clear Canvas on Config Change")
         ])
     ];
 });
 
 const batchCount = parseInt(user_selection[0][0]) || 1;
+const clearCanvasOnConfig = user_selection[0][1];
 
 console.log(`Batch Count: ${batchCount}`);
+console.log(`Clear Canvas on Config Change: ${clearCanvasOnConfig}`);
 console.log(`Prompt Length: ${promptString.length} characters`);
 console.log(`Prompt Preview: ${promptString.substring(0, 300)}...`);
 
@@ -338,7 +341,8 @@ if (isPhotoshootMode) {
             const context = baseContext.clone();
             const expandedPrompt = expandWildcards(rawShot, context);
             const mergedConfig = Object.assign({}, originalConfig, context.activeConfig);
-            taskQueue.push({ prompt: expandedPrompt, config: mergedConfig });
+            const hasConfigChange = Object.keys(context.activeConfig).length > 0;
+            taskQueue.push({ prompt: expandedPrompt, config: mergedConfig, hasConfigChange });
         }
     }
 } else {
@@ -349,7 +353,8 @@ if (isPhotoshootMode) {
         const context = baseContext.clone();
         const expandedPrompt = expandWildcards(promptString, context);
         const mergedConfig = Object.assign({}, originalConfig, context.activeConfig);
-        taskQueue.push({ prompt: expandedPrompt, config: mergedConfig });
+        const hasConfigChange = Object.keys(context.activeConfig).length > 0;
+        taskQueue.push({ prompt: expandedPrompt, config: mergedConfig, hasConfigChange });
     }
 }
 
@@ -359,6 +364,12 @@ console.log(`Executing ${taskQueue.length} tasks...`);
 for (let i = 0; i < taskQueue.length; i++) {
     const task = taskQueue[i];
     console.log(`[${i + 1}/${taskQueue.length}] Generating: ${task.prompt.substring(0, 50)}...`);
+
+    // Clear canvas if option is enabled and config differs from original
+    if (clearCanvasOnConfig && task.hasConfigChange) {
+        console.log("  Clearing canvas (config change detected)");
+        canvas.clear();
+    }
 
     pipeline.run({
         configuration: task.config,
